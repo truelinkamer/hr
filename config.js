@@ -3,5 +3,5 @@
 // The anon key is meant to be public. The data is protected by the login and the database rules.
 window.TL_CONFIG = {
   SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: ""
+  SUPABASE_ANON_KEY: "sb_publishable_q1zmFUynui6x2OiJqlOY4g_Mczn2WH3"
 };
