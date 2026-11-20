@@ -49,3 +49,8 @@ revoke all on public.employees    from anon;
 revoke all on public.salary_slips from anon;
 revoke all on public.certificates from anon;
 revoke all on public.app_settings from anon;
+
+-- Let signed-in users use the tables through the Data API, then refresh the API cache.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.employees, public.salary_slips, public.certificates, public.app_settings to authenticated;
+notify pgrst, 'reload schema';
