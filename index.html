@@ -138,7 +138,7 @@ table.emp th{color:var(--mut);font-weight:500}
     <label for="lgEmail" style="margin-top:0">Email</label><input id="lgEmail" type="email" autocomplete="username">
     <label for="lgPass">Password</label><input id="lgPass" type="password" autocomplete="current-password">
     <div class="warn" id="lgMsg"></div>
-    <div class="btns" style="margin-top:6px"><button class="btn" id="lgBtn">Sign in</button></div>
+    <div class="btns" style="margin-top:6px;align-items:center"><button class="btn" id="lgBtn">Sign in</button><button class="x g" id="cfgToggle" type="button" style="display:none">Change project details</button></div>
   </div>
 </section>
 
@@ -637,7 +637,8 @@ const chip=(m,bad)=>{const c=$("dbChip");c.textContent=m;c.style.color=bad?"#ffb
 
 /* ---------- Supabase (sign in + database) ---------- */
 const CFG=window.TL_CONFIG||{},LC=store.get("tl_sbcfg",{});
-let SB_URL=String(CFG.SUPABASE_URL||LC.url||"").replace(/\/+$/,""),SB_KEY=CFG.SUPABASE_ANON_KEY||LC.key||"";
+const cleanUrl=u=>{try{return new URL(String(u).trim()).origin}catch(e){return""}};
+let SB_URL=cleanUrl(CFG.SUPABASE_URL||LC.url||""),SB_KEY=String(CFG.SUPABASE_ANON_KEY||LC.key||"").trim();
 let session=store.get("tl_session",null);
 const cfgOk=()=>!!(SB_URL&&SB_KEY);
 async function authReq(path,body){const r=await fetch(SB_URL+"/auth/v1/"+path,{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -674,19 +675,20 @@ async function loadAll(){const[e,s,c,st]=await Promise.all([db.list("employees")
 let lastSl=null;
 function slSync(){const v=$("sl").value;if(!session||lastSl===null||v===lastSl)return;lastSl=v;later("sl",()=>dbSet("sl",{v}),1500)}
 function showLogin(msg){document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-login"));
-  $("signout").style.display="none";$("dbChip").textContent="";$("crumb").textContent="";$("cfgBox").style.display=cfgOk()?"none":"block";
+  $("signout").style.display="none";$("dbChip").textContent="";$("crumb").textContent="";$("cfgBox").style.display=cfgOk()?"none":"block";$("cfgToggle").style.display=cfgOk()?"":"none";
   $("lgMsg").textContent=msg||sessionStorage.getItem("tl_msg")||"";sessionStorage.removeItem("tl_msg")}
 function signOut(msg){try{if(session)fetch(SB_URL+"/auth/v1/logout",{method:"POST",keepalive:true,headers:{apikey:SB_KEY,Authorization:"Bearer "+session.access}}).catch(()=>{})}catch(e){}
   if(msg)sessionStorage.setItem("tl_msg",msg);session=null;try{localStorage.removeItem("tl_session")}catch(e){}location.reload()}
 $("signout").onclick=()=>signOut();
 $("lgBtn").onclick=async()=>{
-  if(!cfgOk()){const u=$("cfgUrl").value.trim().replace(/\/+$/,""),k=$("cfgKey").value.trim();
-    if(!/^https:\/\//.test(u)||!k){$("lgMsg").textContent="Enter the project URL (starts with https://) and the public key.";return}
+  if($("cfgBox").style.display==="block"){const u=cleanUrl($("cfgUrl").value),k=$("cfgKey").value.trim();
+    if(!/^https:\/\/.+/.test(u)||!k){$("lgMsg").textContent="Enter the project URL (like https://abcd.supabase.co) and the public key.";return}
     SB_URL=u;SB_KEY=k;store.set("tl_sbcfg",{url:u,key:k})}
   const em=$("lgEmail").value.trim(),pw=$("lgPass").value;if(!em||!pw){$("lgMsg").textContent="Enter your email and password.";return}
   $("lgMsg").textContent="Signing in…";
   try{setSession(await authReq("token?grant_type=password",{email:em,password:pw}));$("lgPass").value="";await start()}
-  catch(e){$("lgMsg").textContent=/invalid|credentials/i.test(e.message)?"Wrong email or password.":"Could not sign in: "+e.message}};
+  catch(e){$("lgMsg").textContent=/invalid login credentials/i.test(e.message)?"Wrong email or password.":"Could not sign in: "+e.message+(/path|not found|failed to fetch/i.test(e.message)?". Check the Project URL: it should look like https://abcd.supabase.co with nothing after .co":"")}};
+$("cfgToggle").onclick=()=>{$("cfgUrl").value=SB_URL;$("cfgKey").value=SB_KEY;$("cfgBox").style.display="block";$("cfgToggle").style.display="none"};
 ["lgEmail","lgPass"].forEach(i=>$(i).addEventListener("keydown",e=>{if(e.key==="Enter")$("lgBtn").click()}));
 async function migrateLocal(){
   const L=k=>{try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}};
